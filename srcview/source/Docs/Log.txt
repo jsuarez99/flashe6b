@@ -1,0 +1,119 @@
+FlashE6B
+By Joshua Suarez
+joshuasuarez@gmail.com
+
+Copyright (c) 2010 Joshua Suarez
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+-------------------------------------------------------------------------------------------------
+
+DEVELOPMENT LOG
+
+---
+October 11th, 2010
+---
+Finished with the initial version.  
+
+---
+October 8th, 2010
+---
+The image had to be scaled down because of how large it is on screens other than my own dev machine.
+If the image is larger than the browser, than the red dot will not be shown on the slide rule 
+properly.
+
+---
+October 7th, 2010
+---
+New function added for positioning the outer scale over the hour index. All aviation functions 
+were completed.  I made it so the aviation functions will take any two fields and calculate the 
+third (while disabling it).  To edit two different fields, the form must be reset.  This prevents
+any ambiguity if someone were to edit one field while the other two had data in it, leaving the
+program with no way of knowing what field it is calculating for.
+
+---
+October 6th, 2010
+---
+
+Division added.  Marker is cleared when clicking on the slide rule to drag it. 
+
+---
+October 5th, 2010
+---
+
+I completed the underlying functions for how answers will be displayed.  Let's use 4 * 5 as an
+example.  The user enters 4 into the first input, then the outer scale is rotated so 1 and 4 are
+lined up.  The user enters 5 into the second input, then a red dot is displayed at the inner
+scale's 5 between the two scales, showing that the answer is 20.  The answer is displayed in the
+last box.  This works no matter what order of magnitude the numbers are entered at.
+
+Multiplication and the marker function (to place the red dot on the screen) completed today.
+
+---
+October 3rd, 2010
+---
+
+After a little 'rithmetic, I discovered the correct function to convert the current angle of
+rotation into the current value the outer scale is at where the inner scale is at 1.0.  The 
+function is 10^(currentPos/360).  To convert from value to angle, its Log(value)*360.  Actually,
+flex requires you to also multiply that answer by the constant Math.LOG10E, so the complete
+equation is Math.log(value) * Math.LOG10E * 360.
+
+Added a box for some basic functions, which are going to be conversion, multiplication, and
+division.  Conversion is done, multiplication and division need to be implemented.
+
+---
+October 1st, 2010
+---
+
+I am placing this software under the MIT License (above).
+
+---
+September 30th, 2010
+---
+
+The rotation algorithm was completed.  I had to remove a line from the stackoverflow code that
+would add PI when x was zero.  I discovered that Flex also uses local and global coordinates,
+so I had to set up code to only use the global coordinates so it wouldn't matter if the user
+dragged the image within the inner or outer scales.
+
+---
+September 29th, 2010
+---
+
+Worked on the rotation arithmetic.  Math is not my strong point.  I found the algorithm on
+this forum post: 
+(http://stackoverflow.com/questions/2198303/java-2d-drag-mouse-to-rotate-image-smoothly/2198368#2198368)
+
+
+---
+September 28th, 2010
+---
+
+Project started.  I created the images of the inner and outer scales from the printable E6B pdf
+and modified them in photoshop.  Laying the inner wheel on top of the outer, I was able to 
+create a movable outer wheel that lines up with the inner's values.
+(Printable E6B obtained from http://ben.com/flying/e6b/)
+
+The rotation required a bit of a hack, since Flex will only apply the rotation property to the 
+upper left corner of any display object.  The image was placed in a canvas with its center at 
+the upper left corner. Clipping was set to false to have the image display outside of the canvas. 
+Now any rotations can be applied to the canvas and it will look as if the outer scale is rotating
+about its center. (solution found at http://www.joelconnett.com/flex-rotation-around-a-point.html)
+
