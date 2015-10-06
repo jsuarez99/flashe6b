@@ -1,0 +1,21 @@
+/* Used for the links on the page */
+
+a:link {
+color: #0000FF; 
+text-decoration: underline; 
+}
+
+a:active {
+color: #0000ff; 
+text-decoration: underline; 
+}
+
+a:visited {
+color: #008000; 
+text-decoration: underline; 
+}
+
+a:hover {
+color: #ff0000; 
+text-decoration: none; 
+}

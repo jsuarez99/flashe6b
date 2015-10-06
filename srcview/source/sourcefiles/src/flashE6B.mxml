@@ -1,0 +1,552 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+
+Copyright (c) 2010 Joshua Suarez
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+-->
+
+
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" backgroundGradientAlphas="[1.0, 1.0]" 
+	backgroundGradientColors="[#FFFFFF, #FFFFFF]" viewSourceURL="srcview/index.html">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Label;
+
+			//Variables for calculating the angle to rotate the wheel
+			private var startAngle:Number = 0;
+			private var newAngle:Number = 0;
+			private var dispAngle:Number = 0;
+			
+			//The center of the slide rule
+			//If the image is moved or resized, change these variables!
+			private var originX:Number = 296.5;
+			private var originY:Number = 296.5;
+			//Radius of the inner wheel
+			private var radius:Number = 242;
+			
+			//Answer marker
+			private var dot:Shape = new Shape();
+			
+			//Used for rotating the scale only when the mouse button is pressed
+			[Bindable]
+			private var isMouseButtonDown:Boolean = false;
+			
+			//Debug, delete later
+			[Bindable]
+			private var X:Number;
+			[Bindable]
+			private var Y:Number;
+			
+			//The current value of the outer scale
+			[Bindable]
+			private var currentValue:Number;
+			
+			
+			//--------------------------------------------------------------------------
+			//Sets the mouse down variable as true and records the current angle of the
+			//mouse pointer
+			private function onmousedown(e:MouseEvent):void {
+				removeMarker();
+				isMouseButtonDown = true;
+   				startAngle = getAngle(e.stageX,e.stageY) - rotationContainer.rotation;
+			}
+
+			//--------------------------------------------------------------------------
+			//Rotates the outer scale while the mouse button is held down
+			private function onmousemove(e:MouseEvent):void {
+				if(isMouseButtonDown){
+    				newAngle = getAngle(e.stageX,e.stageY);
+    				rotationContainer.rotation = newAngle - startAngle;
+    				currentValue = -(newAngle - startAngle);
+    			}
+			}
+			
+			
+			//--------------------------------------------------------------------------
+			//Gets the angle that the mouse is located at from the center
+			private function getAngle(curX:Number,curY:Number):Number{
+				var dy:Number = Math.round(curY - originY);
+				var dx:Number = Math.round(curX - originX);
+				var angle:Number = 0;
+				
+				X = dx;
+				Y = dy;
+				
+				if (dx == 0) // special case
+			        angle = dy >= 0 ? Math.PI/2: -(Math.PI/2);
+				else{
+    				angle = Math.atan2(dy,dx);
+				}
+				// all between 0 and 2PI
+				if (angle < 0){ // between -PI/2 and 0
+			        angle += 2 * Math.PI;
+				}
+				
+				return angle * 180 / Math.PI;
+			}
+						
+			//-------------------------------------------------------------------------
+			//Calculate the current value of the of the outer scale
+			private function getCurrentValue(angle:Number):Number{
+				if(angle < 0)
+					angle = 180 + (180 + angle);
+				
+				var srVal:Number = Math.pow(10,(angle/360));
+				
+				if(srVal >= 10)
+					srVal = 1;
+				
+				return srVal;
+			}
+			
+			//-------------------------------------------------------------------------
+			//Set the value of the outer scale to line up with the unit index
+			private function setPositionUnit(value:Number):void{
+				rotationContainer.rotation = -(Math.log(value) * Math.LOG10E * 360);
+			}
+			
+			//-------------------------------------------------------------------------
+			//Set the value of the outer scale to line up with the hour index
+			private function setPositionHour(value:Number):void{
+				rotationContainer.rotation = -(Math.log(value) * Math.LOG10E * 360) - 79.90;
+			}
+			
+			//-------------------------------------------------------------------------
+			//find the marker coordinates
+			private function setMarker(value:Number):void{
+				if(value <= 0) return
+				
+				//Go to the lowest order of magnitude
+				while(value >= 10)
+					value /= 10;
+					
+				while(value < 1 && value > 0)
+					value *= 10;
+				
+				//Calculate the X and Y component of the point from the center
+				var angleRadians:Number = (Math.log(value) * Math.LOG10E * 360 * Math.PI / 180) - (Math.PI/2);
+				var xComponent:Number = Math.cos(angleRadians) * radius;
+				var yComponent:Number = Math.sin(angleRadians) * radius;
+				
+				xComponent = new int(xComponent);
+				yComponent = new int(yComponent); 
+		
+				//delete the old dot
+				if(rawChildren.contains(dot)) 
+					rawChildren.removeChild(dot);
+				//draw the dot between the two scales where the answer is
+				dot = new Shape();
+				dot.graphics.beginFill(0xFF0000);
+				dot.graphics.drawCircle(originX + xComponent,originY + yComponent,5);
+				dot.graphics.endFill();
+				rawChildren.addChild(dot);
+			}
+			
+			
+			//-------------------------------------------------------------------------
+			//Perform multiplication
+			private function multiply(e:KeyboardEvent):void{
+				if(mult1.text.match(/[^0-9\.]/) || mult2.text.match(/[^0-9\.]/))
+					return;
+					
+				if(mult1.text.length == 0 || mult2.text.length == 0)
+					return;
+
+				var field1:Number = new Number(mult1.text);
+				var field2:Number = new Number(mult2.text);
+				
+				setPositionUnit(field1);
+				setMarker(field2);
+				
+				field1 *= field2;
+				
+				multAnswer.text = field1.toFixed(2);
+			}
+			
+			
+			//-------------------------------------------------------------------------
+			//Perform division
+			private function divide(e:KeyboardEvent):void{
+				if(div1.text.match(/[^0-9\.]/) || div2.text.match(/[^0-9\.]/))
+					return;
+					
+				if(div1.text.length == 0 || div2.text.length == 0)
+					return;
+
+				var field1:Number = new Number(div1.text);
+				var field2:Number = new Number(div2.text);
+				
+				setPositionUnit(field1/field2);
+				setMarker(field2);
+				
+				field1 /= field2;
+				
+				divAnswer.text = field1.toFixed(2);
+			}
+			
+			
+			//-------------------------------------------------------------------------
+			//Find the ground speed (two fields required)
+			private function groundSpeed(e:Event):void{
+				if(gs_dist.text.match(/[^0-9\.]/) || gs_time.text.match(/[^0-9\.]/) || gs_spd.text.match(/[^0-9\.]/))
+					return;
+				
+				var field1:Number;
+				var field2:Number;
+				
+				//find speed
+				if(gs_dist.text.length != 0 && gs_time.text.length != 0 && gs_dist.enabled && gs_time.enabled){
+					field1 = new Number(gs_dist.text);
+					field2 = new Number(gs_time.text);
+						
+					setMarker(field2);			
+					setPositionHour( (field1 / field2) * 60);
+
+					field1 = (field1 / field2) * 60;
+				
+					gs_spd.text = field1.toFixed(2);
+					gs_spd.enabled = false;
+					gsReset.enabled = true;
+				}
+				
+				//find time
+				else if(gs_dist.text.length != 0 && gs_spd.text.length != 0 && gs_dist.enabled && gs_spd.enabled){
+					field1 = new Number(gs_dist.text);
+					field2 = new Number(gs_spd.text);
+						
+					setMarker((field1 / field2) * 60);			
+					setPositionHour(field2);
+
+					field1 = (field1 / field2) * 60;
+				
+					gs_time.text = field1.toFixed(2);
+					gs_time.enabled = false;
+					gsReset.enabled = true;
+				}
+				
+				//find distance
+				else if(gs_time.text.length != 0 && gs_spd.text.length != 0 && gs_time.enabled && gs_spd.enabled){
+					field1 = new Number(gs_time.text);
+					field2 = new Number(gs_spd.text);
+						
+					setMarker(field1);			
+					setPositionHour(field2);
+
+					field1 = (field1 * field2) / 60;
+				
+					gs_dist.text = field1.toFixed(2);
+					gs_dist.enabled = false;
+					gsReset.enabled = true;
+				}
+			}
+			
+			//-------------------------------------------------------------------------------
+			//Reset ground speed fields and make them editable
+			private function resetGroundSpeedForm(e:Event):void{
+				gs_dist.enabled = true;
+				gs_dist.text = '';
+				gs_time.enabled = true;
+				gs_time.text = '';
+				gs_spd.enabled = true;
+				gs_spd.text = '';
+				
+				removeMarker();
+				gsReset.enabled = false;
+			}
+			
+			
+			//-------------------------------------------------------------------------
+			//Find the fuel consumption (two fields required)
+			private function fuelConsumption(e:Event):void{
+				if(fc_fuel.text.match(/[^0-9\.]/) || fc_time.text.match(/[^0-9\.]/) || fc_cons.text.match(/[^0-9\.]/))
+					return;
+				
+				var field1:Number;
+				var field2:Number;
+				
+				//find fuel consumption
+				if(fc_fuel.text.length != 0 && fc_time.text.length != 0 && fc_fuel.enabled && fc_time.enabled){
+					field1 = new Number(fc_fuel.text);
+					field2 = new Number(fc_time.text);
+						
+					setMarker(field2);			
+					setPositionHour( field1 / (field2 / 60) );
+
+					field1 = field1 / (field2 / 60);
+				
+					fc_cons.text = field1.toFixed(2);
+					fc_cons.enabled = false;
+					fcReset.enabled = true;
+				}
+				
+				//find time
+				else if(fc_fuel.text.length != 0 && fc_cons.text.length != 0 && fc_fuel.enabled && fc_cons.enabled){
+					field1 = new Number(fc_fuel.text);
+					field2 = new Number(fc_cons.text);
+						
+					setMarker( (field1 * 60) / field2 );			
+					setPositionHour(field2);
+
+					field1 = (field1 * 60) / field2;
+				
+					fc_time.text = field1.toFixed(2);
+					fc_time.enabled = false;
+					fcReset.enabled = true;
+				}
+				
+				//find fuel used
+				else if(fc_time.text.length != 0 && fc_cons.text.length != 0 && fc_time.enabled && fc_cons.enabled){
+					field1 = new Number(fc_time.text);
+					field2 = new Number(fc_cons.text);
+					
+					setMarker(field1);
+					setPositionHour(field2);
+
+					field1 = (field1 * field2) / 60;
+				
+					fc_fuel.text = field1.toFixed(2);
+					fc_fuel.enabled = false;
+					fcReset.enabled = true;
+				}
+			}
+			
+			//-------------------------------------------------------------------------------
+			//Reset fuel consumption fields and make them editable
+			private function resetFuelConsForm(e:Event):void{
+				fc_fuel.enabled = true;
+				fc_fuel.text = '';
+				fc_time.enabled = true;
+				fc_time.text = '';
+				fc_cons.enabled = true;
+				fc_cons.text = '';
+				
+				removeMarker();
+				fcReset.enabled = false;
+			}
+			
+			
+			//-------------------------------------------------------------------------
+			//Find the rate of descent(two fields required)
+			private function rateDescent(e:Event):void{
+				if(rd_rate.text.match(/[^0-9\.]/) || rd_time.text.match(/[^0-9\.]/) || rd_alt.text.match(/[^0-9\.]/))
+					return;
+				
+				var field1:Number;
+				var field2:Number;
+				
+				//find rate of descent
+				if(rd_rate.text.length != 0 && rd_time.text.length != 0 && rd_rate.enabled && rd_time.enabled){
+					field1 = new Number(rd_rate.text);
+					field2 = new Number(rd_time.text);
+						
+					setMarker( field2 );			
+					setPositionUnit( field1 );
+
+					field1 = field1 * field2;
+				
+					rd_alt.text = field1.toFixed(2);
+					rd_alt.enabled = false;
+					rdReset.enabled = true;
+				}
+				
+				//find time
+				else if(rd_rate.text.length != 0 && rd_alt.text.length != 0 && rd_rate.enabled && rd_alt.enabled){
+					field1 = new Number(rd_rate.text);
+					field2 = new Number(rd_alt.text);
+						
+					setMarker( field2 / field1 );			
+					setPositionUnit(field1);
+
+					field1 = field2 / field1;
+				
+					rd_time.text = field1.toFixed(2);
+					rd_time.enabled = false;
+					rdReset.enabled = true;
+				}
+				
+				//find distance
+				else if(rd_time.text.length != 0 && rd_alt.text.length != 0 && rd_time.enabled && rd_alt.enabled){
+					field1 = new Number(rd_time.text);
+					field2 = new Number(rd_alt.text);
+					
+					setMarker(field1);
+					setPositionUnit(field2/field1);
+
+					field1 = field2 / field1;
+				
+					rd_rate.text = field1.toFixed(2);
+					rd_rate.enabled = false;
+					rdReset.enabled = true;
+				}
+			}
+			
+			//-------------------------------------------------------------------------------
+			//Reset rate of descent fields and make them editable
+			private function resetRateDescForm(e:Event):void{
+				rd_rate.enabled = true;
+				rd_rate.text = '';
+				rd_time.enabled = true;
+				rd_time.text = '';
+				rd_alt.enabled = true;
+				rd_alt.text = '';
+				
+				removeMarker();
+				rdReset.enabled = false;
+			}
+			
+			
+			//-------------------------------------------------------------------------
+			//Reset the slide rule and remove any markers on it
+			private function resetSR():void{
+				removeMarker();
+				rotationContainer.rotation = 0;
+				currentValue = 1;
+			}
+			
+			
+			//--------------------------------------------------------------------------
+			//clear the marker on the slide rule
+			private function removeMarker():void{
+				//delete the old dot
+				if(rawChildren.contains(dot))
+					rawChildren.removeChild(dot);
+			}
+			
+			
+			//--------------------------------------------------------------------------
+			//resize the accordian depending on the selected child
+			private function accordionResize(e:Event):void{
+				if(funcAccordian.selectedIndex == 0)
+					funcAccordian.height = 236;
+				else
+					funcAccordian.height = 400;
+			}
+			
+			//---------------------------------------------------------------------------
+			//Go to the url that was clicked on
+			private function linkHandler( linkEvent:TextEvent ):void{
+      			// Open the link in a new browser window.
+      			navigateToURL( new URLRequest(linkEvent.text), "_blank" );
+   			}
+   			
+   			//----------------------------------------------------------------------------
+   			//Load the css stylesheet for the links
+   			private var loader:URLLoader = new URLLoader();
+   			private function loadCSS():void{
+   				var request:URLRequest = new URLRequest("linkStyles.css");
+	            loader.load(request);
+        	    loader.addEventListener(Event.COMPLETE, cssHandler);
+   			}
+   			
+   			private function cssHandler(e:Event):void{
+           		var cssSheet:StyleSheet = new StyleSheet();
+           		cssSheet.parseCSS(loader.data);
+            	info.styleSheet = cssSheet;
+        	}		
+        	
+        	
+		]]>
+	</mx:Script>
+
+	
+	<!-- The Slide Rule -->
+	<mx:Canvas id="rotationContainer" x="296.5" y="296.5" clipContent="false" rotation="0">
+		<mx:Image id="outerScale" x="{-296.5}" y="{-296.5}" source="images/e6b_03_small.png" 
+			mouseDown="onmousedown(event)" mouseUp="isMouseButtonDown = false" mouseMove="onmousemove(event)"/>
+	</mx:Canvas>
+	<mx:Image id="innerScale" x="48.5" y="48" source="images/e6b_02_small.png" 
+		mouseDown="onmousedown(event)" mouseUp="isMouseButtonDown = false" mouseMove="onmousemove(event)"/>
+	
+	<mx:Button x="657" y="64" label="Reset" 
+		click="resetSR()"/>
+	<!--<mx:Label x="726" y="68" text="x = {X}"/>
+	<mx:Label x="726" y="42" text="y = {Y}"/>
+	<mx:Label x="724" y="16" text="Current Value = {currentValue.toFixed(2)}"/>-->
+	<mx:Accordion id="funcAccordian" x="657" y="94" width="274" height="236" change="accordionResize(event)">
+		<mx:Canvas label="Basic Functions" width="100%" height="100%">
+			<!--conversions-->
+			<mx:Label x="47" y="10" text="Conversion Factor"/>
+			<mx:TextInput x="47" y="36" width="65" text="1.0" editable="false"/>
+			<mx:Label x="128" y="35" text="=" fontWeight="bold" fontSize="16" height="21"/>
+			<mx:TextInput id="convFactor" x="160" y="36" width="65" 
+				keyUp="resetSR(); setPositionUnit(new Number(convFactor.text))"/>
+			
+			<!--multiplication-->
+			<mx:Label x="47" y="66" text="Multiplication"/>
+			<mx:TextInput x="47" y="92" width="40" id="mult1" keyUp="multiply(event)"/>
+			<mx:Label x="90" y="93" text="X" fontWeight="bold" fontSize="16" height="21"/>
+			<mx:TextInput x="111" y="92" width="40" id="mult2"  keyUp="multiply(event)"/>
+			<mx:Label x="155" y="92" text="=" fontWeight="bold" fontSize="16" height="21"/>
+			<mx:TextInput x="174" y="92" width="51" id="multAnswer" editable="false"/>
+			
+			<!--division-->
+			<mx:Label x="47" y="122" text="Division"/>
+			<mx:TextInput x="47" y="148" width="40" id="div1" keyUp="divide(event)"/>
+			<mx:Label x="87" y="148" text="%" fontWeight="bold" fontSize="16" height="21"/>
+			<mx:TextInput x="111" y="148" width="40" id="div2"  keyUp="divide(event)"/>
+			<mx:Label x="155" y="148" text="=" fontWeight="bold" fontSize="16" height="21"/>
+			<mx:TextInput x="174" y="148" width="51" id="divAnswer" editable="false"/>
+
+		</mx:Canvas>
+		<mx:Canvas label="Aviation Functions" width="100%" height="100%">
+		    <!--ground speed-->
+		    <mx:Button id="gsReset" x="97" y="8" label="Reset Fields" enabled="false" click="resetGroundSpeedForm(event)"/>
+			<mx:Label x="10" y="10" text="Ground Speed" fontWeight="bold"/>
+			<mx:TextInput id="gs_dist" x="70" y="48" width="50" keyUp="groundSpeed(event)"/>
+			<mx:Text x="10" y="34" text="Distance&#xa;Traveled&#xa;(Miles)" height="48"/>
+			<mx:TextInput id="gs_time" x="203" y="47" width="50" keyUp="groundSpeed(event)"/>
+			<mx:Text x="142" y="42" text="Time&#xa;(Minutes)" height="31" textAlign="center"/>
+			<mx:TextInput id="gs_spd" x="176" y="90" width="50" keyUp="groundSpeed(event)"/>
+			<mx:Text x="46" y="92" text="Ground Speed (MPH)" height="16"/>
+						
+			<!--fuel consumption-->
+			<mx:Button x="124" y="123" label="Reset Fields" id="fcReset" enabled="false" click="resetFuelConsForm(event)"/>
+			<mx:Label x="10" y="125" text="Fuel Consumption" fontWeight="bold"/>
+			<mx:TextInput id="fc_time" x="71" y="156" width="50" keyUp="fuelConsumption(event)"/>
+			<mx:Text x="10" y="151" text="Time&#xa;(Minutes)" height="31" textAlign="center"/>
+			<mx:TextInput id="fc_fuel" x="203" y="156" width="50" keyUp="fuelConsumption(event)"/>
+			<mx:Text x="137" y="151" text="Fuel&#xa;(Gallons)" height="31" textAlign="center"/>
+			<mx:TextInput id="fc_cons" y="196" width="50" horizontalCenter="58" keyUp="fuelConsumption(event)"/>
+			<mx:Text y="198" text="Consumption Rate" height="16" horizontalCenter="-29"/>
+			
+			<!--rate of climb/descent-->
+			<mx:Button x="154" y="228" label="Reset Fields" id="rdReset" enabled="false" click="resetRateDescForm(event)"/>
+			<mx:Label x="14.5" y="232" text="Rate of Climb/Descent" fontWeight="bold"/>
+			<mx:TextInput id="rd_time" x="75.5" y="262" width="50" keyUp="rateDescent(event)"/>
+			<mx:Text x="14.5" y="257" text="Time&#xa;(Minutes)" height="31" textAlign="center"/>
+			<mx:TextInput id="rd_rate" x="207.5" y="262" width="50" keyUp="rateDescent(event)"/>
+			<mx:Text x="141.5" y="257" text="Rate&#xa;(ft/min)" height="31" textAlign="center"/>
+			<mx:TextInput id="rd_alt" y="302" width="50" horizontalCenter="58" keyUp="rateDescent(event)"/>
+			<mx:Text y="304" text="Total Altitude(ft)" height="16" horizontalCenter="-37"/>
+			
+		</mx:Canvas>
+	</mx:Accordion>
+
+	<mx:TextArea id="info" x="657" y="22" width="274" height="34" selectable="true" link="linkHandler(event)" 
+		creationComplete="loadCSS()" borderStyle="none">
+		<mx:htmlText>
+			<![CDATA[FlashE6B Copyright (c) 2010 <a href='event:http://www.joshsuarez.co.cc/' target='_blank'>Joshua Suarez</a>
+Slide Rule image by <a href='event:http://ben.com/' target='_blank'>Ben Jackson</a>]]>
+		</mx:htmlText>
+	</mx:TextArea>
+</mx:Application>
